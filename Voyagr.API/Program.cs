@@ -10,14 +10,29 @@ using Voyagr.Infrastructure.Data;
 using Voyagr.Infrastructure.Repositories;
 using Voyagr.Infrastructure.Services;
 
-var builder = WebApplication.CreateBuilder(args);
-
-// Disable JSON configuration file watching.
-// This prevents FileSystemWatcher / inotify issues in restricted containers.
-foreach (var source in builder.Configuration.Sources.OfType<JsonConfigurationSource>())
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
-    source.ReloadOnChange = false;
-}
+    Args = args
+});
+
+// Rebuild JSON configuration without file watching.
+// This is important for restricted container environments
+// such as free hosting instances with low inotify limits.
+var configurationBuilder = new ConfigurationBuilder()
+    .SetBasePath(builder.Environment.ContentRootPath)
+    .AddJsonFile(
+        "appsettings.json",
+        optional: false,
+        reloadOnChange: false
+    )
+    .AddJsonFile(
+        $"appsettings.{builder.Environment.EnvironmentName}.json",
+        optional: true,
+        reloadOnChange: false
+    )
+    .AddEnvironmentVariables();
+
+var configuration = configurationBuilder.Build();
 
 // Controllers
 builder.Services.AddControllers();
@@ -27,7 +42,8 @@ builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen(options =>
 {
-    options.AddSecurityDefinition("Bearer",
+    options.AddSecurityDefinition(
+        "Bearer",
         new Microsoft.OpenApi.Models.OpenApiSecurityScheme
         {
             Name = "Authorization",
@@ -47,7 +63,8 @@ builder.Services.AddSwaggerGen(options =>
                     Reference =
                         new Microsoft.OpenApi.Models.OpenApiReference
                         {
-                            Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                            Type =
+                                Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
                             Id = "Bearer"
                         }
                 },
@@ -57,10 +74,15 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // Database
+var connectionString =
+    configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException(
+        "DefaultConnection is missing."
+    );
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection")
-    ));
+    options.UseNpgsql(connectionString)
+);
 
 // Dependency Injection
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -68,11 +90,21 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 // JWT
-var jwtSettings = builder.Configuration.GetSection("Jwt");
+var jwtSettings = configuration.GetSection("Jwt");
 
 var jwtKey = jwtSettings["Key"]
     ?? throw new InvalidOperationException(
         "JWT Key is missing."
+    );
+
+var jwtIssuer = jwtSettings["Issuer"]
+    ?? throw new InvalidOperationException(
+        "JWT Issuer is missing."
+    );
+
+var jwtAudience = jwtSettings["Audience"]
+    ?? throw new InvalidOperationException(
+        "JWT Audience is missing."
     );
 
 builder.Services
@@ -87,8 +119,8 @@ builder.Services
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
 
-                ValidIssuer = jwtSettings["Issuer"],
-                ValidAudience = jwtSettings["Audience"],
+                ValidIssuer = jwtIssuer,
+                ValidAudience = jwtAudience,
 
                 IssuerSigningKey =
                     new SymmetricSecurityKey(
@@ -106,8 +138,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 // HTTPS is handled by Render's proxy.
-// No need to redirect HTTP to HTTPS inside the container.
-// app.UseHttpsRedirection();
+// Do not redirect inside the container.
 
 // Authentication MUST come before Authorization
 app.UseAuthentication();

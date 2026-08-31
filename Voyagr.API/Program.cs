@@ -3,12 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration.Json;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-
 using Voyagr.Application.Interfaces;
 using Voyagr.Application.Services;
 using Voyagr.Infrastructure.Data;
 using Voyagr.Infrastructure.Repositories;
 using Voyagr.Infrastructure.Services;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -35,7 +35,13 @@ var configurationBuilder = new ConfigurationBuilder()
 var configuration = configurationBuilder.Build();
 
 // Controllers
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new JsonStringEnumConverter()
+        );
+    });
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -85,6 +91,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 );
 
 // Dependency Injection
+builder.Services.AddHttpClient<ICurrencyService, CurrencyService>();
+//builder.Services.AddScoped<ICurrencyService, CurrencyService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -128,8 +136,9 @@ builder.Services
                     )
             };
     });
+builder.Services.AddHttpClient();
+//builder.Services.AddAuthorization();
 
-builder.Services.AddAuthorization();
 
 var app = builder.Build();
 

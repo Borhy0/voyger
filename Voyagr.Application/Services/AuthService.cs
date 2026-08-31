@@ -1,6 +1,4 @@
-﻿//using BCrypt.Net;
-//using Voyagr.Application.DTOS.Auth;
-using Voyagr.Application.DTOS.Auth;
+﻿using Voyagr.Application.DTOS.Auth;
 using Voyagr.Application.Interfaces;
 using Voyagr.Domain.Entities;
 
@@ -10,13 +8,16 @@ public class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepository;
     private readonly IJwtService _jwtService;
+    private readonly IRefreshTokenService _refreshTokenService;
 
     public AuthService(
         IUserRepository userRepository,
-        IJwtService jwtService)
+        IJwtService jwtService,
+        IRefreshTokenService refreshTokenService)
     {
         _userRepository = userRepository;
         _jwtService = jwtService;
+        _refreshTokenService = refreshTokenService;
     }
 
     public async Task<AuthResponse> SignupAsync(
@@ -37,18 +38,28 @@ public class AuthService : IAuthService
             );
         }
 
-        var passwordHash = BCrypt.Net.BCrypt.HashPassword(
-            request.Password
-        );
+        var passwordHash =
+            BCrypt.Net.BCrypt.HashPassword(
+                request.Password
+            );
 
         var user = new User
         {
             Id = Guid.NewGuid(),
-            Name = request.Name.Trim(),
+
+            FirstName = request.FirstName.Trim(),
+
+            LastName = request.LastName.Trim(),
+
             Email = email,
+
             PasswordHash = passwordHash,
-            PreferredCurrency = "USD",
-            Units = "metric",
+
+            PreferredCurrency =
+                request.PreferredCurrency.ToUpper(),
+
+            Units = request.Units,
+
             CreatedAt = DateTime.UtcNow
         };
 
@@ -56,12 +67,27 @@ public class AuthService : IAuthService
 
         await _userRepository.SaveChangesAsync();
 
-        var token =
+        // Generate Access Token
+        var accessToken =
             _jwtService.GenerateToken(user);
+
+        // Generate Refresh Token
+        var refreshToken =
+            _refreshTokenService.GenerateRefreshToken();
+
+        // Save Refresh Token
+        await _refreshTokenService.SaveAsync(
+            user.Id,
+            refreshToken,
+            DateTime.UtcNow.AddDays(30)
+        );
 
         return new AuthResponse
         {
-            Token = token,
+            AccessToken = accessToken,
+
+            RefreshToken = refreshToken,
+
             User = MapUser(user)
         };
     }
@@ -84,10 +110,11 @@ public class AuthService : IAuthService
             );
         }
 
-        var passwordValid = BCrypt.Net.BCrypt.Verify(
-            request.Password,
-            user.PasswordHash
-        );
+        var passwordValid =
+            BCrypt.Net.BCrypt.Verify(
+                request.Password,
+                user.PasswordHash
+            );
 
         if (!passwordValid)
         {
@@ -96,12 +123,27 @@ public class AuthService : IAuthService
             );
         }
 
-        var token =
+        // Generate Access Token
+        var accessToken =
             _jwtService.GenerateToken(user);
+
+        // Generate Refresh Token
+        var refreshToken =
+            _refreshTokenService.GenerateRefreshToken();
+
+        // Save Refresh Token
+        await _refreshTokenService.SaveAsync(
+            user.Id,
+            refreshToken,
+            DateTime.UtcNow.AddDays(30)
+        );
 
         return new AuthResponse
         {
-            Token = token,
+            AccessToken = accessToken,
+
+            RefreshToken = refreshToken,
+
             User = MapUser(user)
         };
     }
@@ -129,11 +171,35 @@ public class AuthService : IAuthService
         return new UserResponse
         {
             Id = user.Id,
-            Name = user.Name,
+
+            FirstName = user.FirstName,
+
+            LastName = user.LastName,
+
             Email = user.Email,
+
             PreferredCurrency =
                 user.PreferredCurrency,
+
             Units = user.Units
         };
+    }
+    public async Task LogoutAsync(string refreshToken)
+    {
+        var token = await _refreshTokenService.GetAsync(refreshToken);
+
+        if (token is null)
+        {
+            return;
+        }
+
+        if (token.RevokedAt != null)
+        {
+            return;
+        }
+
+        token.RevokedAt = DateTime.UtcNow;
+
+        await _refreshTokenService.RevokeAsync(token);
     }
 }

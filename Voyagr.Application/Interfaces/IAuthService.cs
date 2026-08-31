@@ -20,4 +20,6 @@ public interface IAuthService
     Task<UserResponse> GetCurrentUserAsync(
         Guid userId
     );
+
+    Task LogoutAsync(string refreshToken);
 }

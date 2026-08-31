@@ -20,9 +20,13 @@ namespace Voyagr.Infrastructure.Data.Configurations
             builder.Property(u => u.Id)
                 .ValueGeneratedOnAdd();
 
-            builder.Property(u => u.Name)
+            builder.Property(u => u.FirstName)
                 .IsRequired()
-                .HasMaxLength(100);
+                .HasMaxLength(50);
+
+            builder.Property(u => u.LastName)
+                .IsRequired()
+                .HasMaxLength(50);
 
             builder.Property(u => u.Email)
                 .IsRequired()

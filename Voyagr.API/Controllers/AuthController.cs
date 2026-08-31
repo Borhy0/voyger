@@ -73,7 +73,6 @@ public class AuthController : ControllerBase
             });
         }
     }
-
     [Authorize]
     [HttpGet("me")]
     public async Task<IActionResult> Me()
@@ -89,8 +88,7 @@ public class AuthController : ControllerBase
         {
             return Unauthorized(new
             {
-                message =
-                    "Invalid user identity."
+                message = "Invalid user identity."
             });
         }
 
@@ -116,12 +114,16 @@ public class AuthController : ControllerBase
 
     [Authorize]
     [HttpPost("logout")]
-    public IActionResult Logout()
+    public async Task<IActionResult> Logout(
+    [FromBody] LogoutRequest request)
     {
+        await _authService.LogoutAsync(
+            request.RefreshToken
+        );
+
         return Ok(new
         {
-            message =
-                "Logged out successfully"
+            message = "Logged out successfully"
         });
     }
 }

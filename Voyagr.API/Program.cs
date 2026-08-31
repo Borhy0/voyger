@@ -88,7 +88,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-
+builder.Services.AddScoped<IRefreshTokenService,RefreshTokenService>();
 // JWT
 var jwtSettings = configuration.GetSection("Jwt");
 

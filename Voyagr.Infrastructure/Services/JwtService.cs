@@ -47,8 +47,13 @@ public class JwtService : IJwtService
             ),
 
             new(
-                ClaimTypes.Name,
-                user.Name
+                ClaimTypes.GivenName,
+                user.FirstName
+            ),
+
+            new(
+                ClaimTypes.Surname,
+                user.LastName
             )
         };
 

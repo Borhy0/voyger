@@ -104,3 +104,4 @@ docker-compose.override.yml
 *.temp
 *.swp
 *.bak
+Voyagr.API/appsettings.json

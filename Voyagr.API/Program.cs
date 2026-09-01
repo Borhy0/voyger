@@ -97,6 +97,11 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IRefreshTokenService,RefreshTokenService>();
+builder.Services.AddScoped<IFavoriteCurrencyRepository,FavoriteCurrencyRepository>();
+builder.Services.AddScoped<
+    IFavoriteCurrencyService,
+    FavoriteCurrencyService>();
+builder.Services.AddMemoryCache();
 // JWT
 var jwtSettings = configuration.GetSection("Jwt");
 

@@ -26,4 +26,6 @@ public class User
 
     public ICollection<RefreshToken> RefreshTokens { get; set; }
     = new List<RefreshToken>();
+    public ICollection<FavoriteCurrencyPair> FavoriteCurrencyPairs { get; set; }
+    = new List<FavoriteCurrencyPair>();
 }

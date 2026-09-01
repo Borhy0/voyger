@@ -1,18 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Voyagr.Application.DTOS.Currency;
 using CurrencyEnum = Voyagr.Domain.Enums.Currency;
-using Voyagr.Application.DTOS.Currency;
 
-namespace Voyagr.Application.Interfaces
+namespace Voyagr.Application.Interfaces;
+
+public interface ICurrencyService
 {
-    public interface ICurrencyService
-    {
-        Task<CurrencyConvertResponse> ConvertAsync(
-            CurrencyEnum from,
-            CurrencyEnum to,
-            decimal amount);
-    }
+    Task<CurrencyConvertResponse> ConvertAsync(
+        CurrencyEnum from,
+        CurrencyEnum to,
+        decimal amount);
+
+    Task<CurrencyTrendResponse> GetTrendAsync(
+        CurrencyEnum from,
+        CurrencyEnum to);
 }

@@ -52,6 +52,18 @@ namespace Voyagr.Infrastructure.Data.Configurations
                 .WithMany(x => x.Trips)
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Property(x => x.IsDeleted)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+            builder.Property(x => x.DeletedAt);
+
+            builder.Property(x => x.CreatedAt)
+                .IsRequired();
+
+            builder.Property(x => x.UpdatedAt)
+                .IsRequired();
         }
     }
 }

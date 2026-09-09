@@ -149,4 +149,154 @@ public class TripsController : ControllerBase
             });
         }
     }
+
+    [HttpGet]
+    public async Task<IActionResult> GetTrips(
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 10)
+    {
+        var userIdClaim =
+            User.FindFirst(
+                ClaimTypes.NameIdentifier
+            )?.Value;
+
+        if (!Guid.TryParse(
+                userIdClaim,
+                out var userId))
+        {
+            return Unauthorized(new
+            {
+                message = "Invalid user identity."
+            });
+        }
+
+        try
+        {
+            var result =
+                await _tripService.GetPagedAsync(
+                    userId,
+                    page,
+                    pageSize
+                );
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                message = ex.Message
+            });
+        }
+
+
+    }
+
+    [HttpGet("upcoming")]
+    public async Task<IActionResult> GetUpcoming()
+    {
+        var userId = GetCurrentUserId();
+
+        if (userId is null)
+            return Unauthorized();
+
+        var trips =
+            await _tripService.GetUpcomingAsync(userId.Value);
+
+        return Ok(new
+        {
+            data = trips
+        });
+    }
+
+    [HttpGet("past")]
+    public async Task<IActionResult> GetPast()
+    {
+        var userId = GetCurrentUserId();
+
+        if (userId is null)
+            return Unauthorized();
+
+        var trips =
+            await _tripService.GetPastAsync(userId.Value);
+
+        return Ok(new
+        {
+            data = trips
+        });
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var userId = GetCurrentUserId();
+
+        if (userId is null)
+            return Unauthorized();
+
+        var deleted =
+            await _tripService.DeleteAsync(
+                userId.Value,
+                id);
+
+        if (!deleted)
+            return NotFound();
+
+        return Ok(new
+        {
+            message = "Trip deleted successfully."
+        });
+    }
+
+    [HttpGet("deleted")]
+    public async Task<IActionResult> GetDeleted()
+    {
+        var userId = GetCurrentUserId();
+
+        if (userId is null)
+            return Unauthorized();
+
+        var trips =
+            await _tripService.GetDeletedAsync(userId.Value);
+
+        return Ok(new
+        {
+            data = trips
+        });
+    }
+
+    [HttpPost("{id:guid}/recover")]
+    public async Task<IActionResult> Recover(Guid id)
+    {
+        var userId = GetCurrentUserId();
+
+        if (userId is null)
+            return Unauthorized();
+
+        var recovered =
+            await _tripService.RecoverAsync(
+                userId.Value,
+                id);
+
+        if (!recovered)
+            return NotFound();
+
+        return Ok(new
+        {
+            message = "Trip recovered successfully."
+        });
+    }
+
+    private Guid? GetCurrentUserId()
+    {
+        var claim =
+            User.FindFirst(ClaimTypes.NameIdentifier);
+
+        if (claim is null)
+            return null;
+
+        return Guid.TryParse(claim.Value, out var userId)
+            ? userId
+            : null;
+    }
 }

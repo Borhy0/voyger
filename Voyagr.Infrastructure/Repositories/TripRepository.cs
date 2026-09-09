@@ -48,5 +48,64 @@ namespace Voyagr.Infrastructure.Repositories
         {
             await _context.SaveChangesAsync();
         }
+
+        public async Task<(List<Trip> Trips, int TotalCount)>
+        GetPagedByUserIdAsync(
+            Guid userId,
+            int page,
+            int pageSize)
+            {
+                var query = _context.Trips
+                    .Where(x =>
+                        x.UserId == userId &&
+                        !x.IsDeleted);
+
+                var totalCount = await query.CountAsync();
+
+                var trips = await query
+                    .OrderBy(x => x.StartDate)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                return (trips, totalCount);
+        }
+
+        public async Task<List<Trip>> GetUpcomingByUserIdAsync(
+    Guid userId,
+    DateOnly today)
+        {
+            return await _context.Trips
+                .Where(x =>
+                    x.UserId == userId &&
+                    !x.IsDeleted &&
+                    x.StartDate >= today)
+                .OrderBy(x => x.StartDate)
+                .ToListAsync();
+        }
+
+        public async Task<List<Trip>> GetPastByUserIdAsync(
+            Guid userId,
+            DateOnly today)
+        {
+            return await _context.Trips
+                .Where(x =>
+                    x.UserId == userId &&
+                    !x.IsDeleted &&
+                    x.EndDate < today)
+                .OrderByDescending(x => x.EndDate)
+                .ToListAsync();
+        }
+
+        public async Task<List<Trip>> GetDeletedByUserIdAsync(
+            Guid userId)
+        {
+            return await _context.Trips
+                .Where(x =>
+                    x.UserId == userId &&
+                    x.IsDeleted)
+                .OrderByDescending(x => x.DeletedAt)
+                .ToListAsync();
+        }
     }
 }

@@ -147,6 +147,15 @@ builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext =
+        scope.ServiceProvider
+            .GetRequiredService<AppDbContext>();
+
+    await DbSeeder.SeedAsync(dbContext);
+}
+
 // Swagger
 app.UseSwagger();
 app.UseSwaggerUI();

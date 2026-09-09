@@ -1,22 +1,32 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Voyagr.Domain.Entities;
+﻿using Voyagr.Domain.Entities;
 
-namespace Voyagr.Application.Interfaces
+namespace Voyagr.Application.Interfaces;
+
+public interface ITripRepository
 {
-    public interface ITripRepository
-    {
-        Task<Trip?> GetByIdAsync(Guid id);
+    Task<Trip?> GetByIdAsync(Guid id);
 
-        Task<List<Trip>> GetByUserIdAsync(Guid userId);
+    Task<List<Trip>> GetByUserIdAsync(Guid userId);
 
-        Task AddAsync(Trip trip);
+    Task<(List<Trip> Trips, int TotalCount)> GetPagedByUserIdAsync(
+        Guid userId,
+        int page,
+        int pageSize);
 
-        void Update(Trip trip);
+    Task<List<Trip>> GetUpcomingByUserIdAsync(
+        Guid userId,
+        DateOnly today);
 
-        Task SaveChangesAsync();
-    }
+    Task<List<Trip>> GetPastByUserIdAsync(
+        Guid userId,
+        DateOnly today);
+
+    Task<List<Trip>> GetDeletedByUserIdAsync(
+        Guid userId);
+
+    Task AddAsync(Trip trip);
+
+    void Update(Trip trip);
+
+    Task SaveChangesAsync();
 }

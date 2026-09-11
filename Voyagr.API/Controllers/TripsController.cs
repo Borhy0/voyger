@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Voyagr.API.Extensions;
 using Voyagr.Application.DTOS.Trips;
 using Voyagr.Application.Interfaces;
 
@@ -22,119 +23,73 @@ public class TripsController : ControllerBase
     public async Task<IActionResult> Create(
         [FromBody] CreateTripRequest request)
     {
-        var userIdClaim =
-            User.FindFirst(
-                ClaimTypes.NameIdentifier
-            )?.Value;
+        var userId = GetCurrentUserId();
 
-        if (!Guid.TryParse(
-                userIdClaim,
-                out var userId))
-        {
-            return Unauthorized(new
-            {
-                message = "Invalid user identity."
-            });
-        }
+        if (userId is null)
+            return this.UnauthorizedError();
 
         try
         {
             var trip =
                 await _tripService.CreateAsync(
-                    userId,
-                    request
-                );
+                    userId.Value,
+                    request);
 
             return Created(
                 $"/api/v1/trips/{trip.Id}",
                 new
                 {
                     data = trip
-                }
-            );
+                });
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
+            return this.BadRequestError(ex.Message);
         }
     }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var userIdClaim =
-            User.FindFirst(
-                ClaimTypes.NameIdentifier
-            )?.Value;
+        var userId = GetCurrentUserId();
 
-        if (!Guid.TryParse(
-                userIdClaim,
-                out var userId))
-        {
-            return Unauthorized(new
-            {
-                message = "Invalid user identity."
-            });
-        }
+        if (userId is null)
+            return this.UnauthorizedError();
 
         var trip =
             await _tripService.GetByIdAsync(
-                userId,
-                id
-            );
+                userId.Value,
+                id);
 
         if (trip is null)
-        {
-            return NotFound(new
-            {
-                message = "Trip not found."
-            });
-        }
+            return this.NotFoundError("Trip not found.");
 
         return Ok(new
         {
             data = trip
         });
     }
+
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(
-    Guid id,
-    [FromBody] CreateTripRequest request)
+        Guid id,
+        [FromBody] CreateTripRequest request)
     {
-        var userIdClaim =
-            User.FindFirst(
-                ClaimTypes.NameIdentifier
-            )?.Value;
+        var userId = GetCurrentUserId();
 
-        if (!Guid.TryParse(
-                userIdClaim,
-                out var userId))
-        {
-            return Unauthorized(new
-            {
-                message = "Invalid user identity."
-            });
-        }
+        if (userId is null)
+            return this.UnauthorizedError();
 
         try
         {
             var trip =
                 await _tripService.UpdateAsync(
-                    userId,
+                    userId.Value,
                     id,
-                    request
-                );
+                    request);
 
             if (trip is null)
-            {
-                return NotFound(new
-                {
-                    message = "Trip not found."
-                });
-            }
+                return this.NotFoundError("Trip not found.");
 
             return Ok(new
             {
@@ -143,53 +98,34 @@ public class TripsController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
+            return this.BadRequestError(ex.Message);
         }
     }
 
     [HttpGet]
     public async Task<IActionResult> GetTrips(
-    [FromQuery] int page = 1,
-    [FromQuery] int pageSize = 10)
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
     {
-        var userIdClaim =
-            User.FindFirst(
-                ClaimTypes.NameIdentifier
-            )?.Value;
+        var userId = GetCurrentUserId();
 
-        if (!Guid.TryParse(
-                userIdClaim,
-                out var userId))
-        {
-            return Unauthorized(new
-            {
-                message = "Invalid user identity."
-            });
-        }
+        if (userId is null)
+            return this.UnauthorizedError();
 
         try
         {
             var result =
                 await _tripService.GetPagedAsync(
-                    userId,
+                    userId.Value,
                     page,
-                    pageSize
-                );
+                    pageSize);
 
             return Ok(result);
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new
-            {
-                message = ex.Message
-            });
+            return this.BadRequestError(ex.Message);
         }
-
-
     }
 
     [HttpGet("upcoming")]
@@ -198,10 +134,11 @@ public class TripsController : ControllerBase
         var userId = GetCurrentUserId();
 
         if (userId is null)
-            return Unauthorized();
+            return this.UnauthorizedError();
 
         var trips =
-            await _tripService.GetUpcomingAsync(userId.Value);
+            await _tripService.GetUpcomingAsync(
+                userId.Value);
 
         return Ok(new
         {
@@ -215,10 +152,11 @@ public class TripsController : ControllerBase
         var userId = GetCurrentUserId();
 
         if (userId is null)
-            return Unauthorized();
+            return this.UnauthorizedError();
 
         var trips =
-            await _tripService.GetPastAsync(userId.Value);
+            await _tripService.GetPastAsync(
+                userId.Value);
 
         return Ok(new
         {
@@ -232,7 +170,7 @@ public class TripsController : ControllerBase
         var userId = GetCurrentUserId();
 
         if (userId is null)
-            return Unauthorized();
+            return this.UnauthorizedError();
 
         var deleted =
             await _tripService.DeleteAsync(
@@ -240,7 +178,7 @@ public class TripsController : ControllerBase
                 id);
 
         if (!deleted)
-            return NotFound();
+            return this.NotFoundError("Trip not found.");
 
         return Ok(new
         {
@@ -254,10 +192,11 @@ public class TripsController : ControllerBase
         var userId = GetCurrentUserId();
 
         if (userId is null)
-            return Unauthorized();
+            return this.UnauthorizedError();
 
         var trips =
-            await _tripService.GetDeletedAsync(userId.Value);
+            await _tripService.GetDeletedAsync(
+                userId.Value);
 
         return Ok(new
         {
@@ -271,7 +210,7 @@ public class TripsController : ControllerBase
         var userId = GetCurrentUserId();
 
         if (userId is null)
-            return Unauthorized();
+            return this.UnauthorizedError();
 
         var recovered =
             await _tripService.RecoverAsync(
@@ -279,11 +218,36 @@ public class TripsController : ControllerBase
                 id);
 
         if (!recovered)
-            return NotFound();
+            return this.NotFoundError("Trip not found.");
 
         return Ok(new
         {
             message = "Trip recovered successfully."
+        });
+    }
+
+    [HttpPatch("{id:guid}/offline")]
+    public async Task<IActionResult> UpdateOffline(
+        Guid id,
+        [FromBody] UpdateTripOfflineRequest request)
+    {
+        var userId = GetCurrentUserId();
+
+        if (userId is null)
+            return this.UnauthorizedError();
+
+        var result =
+            await _tripService.UpdateOfflineAsync(
+                userId.Value,
+                id,
+                request);
+
+        if (result is null)
+            return this.NotFoundError("Trip not found.");
+
+        return Ok(new
+        {
+            data = result
         });
     }
 
@@ -295,33 +259,10 @@ public class TripsController : ControllerBase
         if (claim is null)
             return null;
 
-        return Guid.TryParse(claim.Value, out var userId)
+        return Guid.TryParse(
+            claim.Value,
+            out var userId)
             ? userId
             : null;
-    }
-
-    [HttpPatch("{id:guid}/offline")]
-    public async Task<IActionResult> UpdateOffline(
-    Guid id,
-    [FromBody] UpdateTripOfflineRequest request)
-    {
-        var userId = GetCurrentUserId();
-
-        if (userId is null)
-            return Unauthorized();
-
-        var result =
-            await _tripService.UpdateOfflineAsync(
-                userId.Value,
-                id,
-                request);
-
-        if (result is null)
-            return NotFound();
-
-        return Ok(new
-        {
-            data = result
-        });
     }
 }

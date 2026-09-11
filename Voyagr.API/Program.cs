@@ -9,6 +9,9 @@ using Voyagr.Infrastructure.Data;
 using Voyagr.Infrastructure.Repositories;
 using Voyagr.Infrastructure.Services;
 using System.Text.Json.Serialization;
+using Voyagr.API.ExceptionHandling;
+using Microsoft.AspNetCore.Mvc;
+using Voyagr.Application.DTOS.Common;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -42,6 +45,32 @@ builder.Services.AddControllers()
             new JsonStringEnumConverter()
         );
     });
+
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(x => x.Value?.Errors.Count > 0)
+            .ToDictionary(
+                x => x.Key,
+                x => x.Value!.Errors
+                    .Select(e =>
+                        string.IsNullOrWhiteSpace(e.ErrorMessage)
+                            ? "The value is invalid."
+                            : e.ErrorMessage)
+                    .ToArray()
+            );
+
+        var response = new ApiErrorResponse
+        {
+            Message = "Validation failed.",
+            Errors = errors
+        };
+
+        return new BadRequestObjectResult(response);
+    };
+});
 
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -102,6 +131,9 @@ builder.Services.AddScoped<IFavoriteCurrencyService,FavoriteCurrencyService>();
 builder.Services.AddScoped<ITripRepository,TripRepository>();
 builder.Services.AddScoped<ITripService, TripService>();
 builder.Services.AddMemoryCache();
+
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 // JWT
 var jwtSettings = configuration.GetSection("Jwt");
 
@@ -164,6 +196,8 @@ app.UseSwaggerUI();
 // Do not redirect inside the container.
 
 // Authentication MUST come before Authorization
+app.UseExceptionHandler();
+
 app.UseAuthentication();
 
 app.UseAuthorization();

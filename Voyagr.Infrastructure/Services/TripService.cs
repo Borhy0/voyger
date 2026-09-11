@@ -305,4 +305,33 @@ public class TripService : ITripService
             Travelers = trip.Travelers
         };
     }
+
+    public async Task<TripOfflineResponseDto?> UpdateOfflineAsync(
+    Guid userId,
+    Guid tripId,
+    UpdateTripOfflineRequest request)
+    {
+        var trip =
+            await _tripRepository.GetByIdAsync(tripId);
+
+        // Ownership check + deleted check
+        if (trip is null ||
+            trip.UserId != userId ||
+            trip.IsDeleted)
+        {
+            return null;
+        }
+
+        trip.IsSavedOffline = request.IsSavedOffline;
+        trip.UpdatedAt = DateTime.UtcNow;
+
+        _tripRepository.Update(trip);
+        await _tripRepository.SaveChangesAsync();
+
+        return new TripOfflineResponseDto
+        {
+            TripId = trip.Id,
+            IsSavedOffline = trip.IsSavedOffline
+        };
+    }
 }

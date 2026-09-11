@@ -299,4 +299,29 @@ public class TripsController : ControllerBase
             ? userId
             : null;
     }
+
+    [HttpPatch("{id:guid}/offline")]
+    public async Task<IActionResult> UpdateOffline(
+    Guid id,
+    [FromBody] UpdateTripOfflineRequest request)
+    {
+        var userId = GetCurrentUserId();
+
+        if (userId is null)
+            return Unauthorized();
+
+        var result =
+            await _tripService.UpdateOfflineAsync(
+                userId.Value,
+                id,
+                request);
+
+        if (result is null)
+            return NotFound();
+
+        return Ok(new
+        {
+            data = result
+        });
+    }
 }

@@ -38,4 +38,8 @@ public interface ITripService
     Task<bool> RecoverAsync(
         Guid userId,
         Guid tripId);
+    Task<TripOfflineResponseDto?> UpdateOfflineAsync(
+    Guid userId,
+    Guid tripId,
+    UpdateTripOfflineRequest request);
 }

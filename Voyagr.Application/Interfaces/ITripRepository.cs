@@ -26,6 +26,7 @@ public interface ITripRepository
 
     Task AddAsync(Trip trip);
 
+    Task AddImageAsync(TripImage image);
     void Update(Trip trip);
 
     Task SaveChangesAsync();

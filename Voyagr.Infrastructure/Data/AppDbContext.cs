@@ -19,6 +19,7 @@ namespace Voyagr.Infrastructure.Data
         public DbSet<FavoriteCurrencyPair> FavoriteCurrencyPairs
         => Set<FavoriteCurrencyPair>();
         public DbSet<Trip> Trips => Set<Trip>();
+        public DbSet<TripImage> TripImages => Set<TripImage>();
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

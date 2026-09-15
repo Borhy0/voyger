@@ -22,7 +22,8 @@ namespace Voyagr.Infrastructure.Repositories
         public async Task<Trip?> GetByIdAsync(Guid id)
         {
             return await _context.Trips
-                .FirstOrDefaultAsync(x => x.Id == id);
+             .Include(x => x.Images)
+             .FirstOrDefaultAsync(x => x.Id == id);
         }
 
         public async Task<List<Trip>> GetByUserIdAsync(
@@ -37,6 +38,10 @@ namespace Voyagr.Infrastructure.Repositories
         public async Task AddAsync(Trip trip)
         {
             await _context.Trips.AddAsync(trip);
+        }
+        public async Task AddImageAsync(TripImage image)
+        {
+            await _context.TripImages.AddAsync(image);
         }
 
         public void Update(Trip trip)

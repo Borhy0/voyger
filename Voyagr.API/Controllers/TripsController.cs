@@ -1,6 +1,8 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Voyagr.API.DTOs;
+using Voyagr.API.DTOs.Trips;
 using Voyagr.API.Extensions;
 using Voyagr.Application.DTOS.Trips;
 using Voyagr.Application.Interfaces;
@@ -20,8 +22,10 @@ public class TripsController : ControllerBase
     }
 
     [HttpPost]
+    [HttpPost]
+    [HttpPost]
     public async Task<IActionResult> Create(
-        [FromBody] CreateTripRequest request)
+    [FromForm] CreateTripWithImagesRequest request)
     {
         var userId = GetCurrentUserId();
 
@@ -30,10 +34,31 @@ public class TripsController : ControllerBase
 
         try
         {
-            var trip =
-                await _tripService.CreateAsync(
-                    userId.Value,
-                    request);
+            var images = request.Images
+                .Select(image => new TripImageUploadDto
+                {
+                    Content = image.OpenReadStream(),
+                    FileName = image.FileName
+                })
+                .ToList();
+
+            var tripRequest = new CreateTripWithImagesDto
+            {
+                Destination = request.Destination,
+                Country = request.Country,
+                Latitude = request.Latitude,
+                Longitude = request.Longitude,
+                StartDate = request.StartDate,
+                EndDate = request.EndDate,
+                Travelers = request.Travelers,
+                BudgetTotal = request.BudgetTotal,
+                IsSavedOffline = request.IsSavedOffline,
+                Images = images
+            };
+
+            var trip = await _tripService.CreateAsync(
+                userId.Value,
+                tripRequest);
 
             return Created(
                 $"/api/v1/trips/{trip.Id}",
@@ -47,7 +72,6 @@ public class TripsController : ControllerBase
             return this.BadRequestError(ex.Message);
         }
     }
-
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
@@ -264,5 +288,35 @@ public class TripsController : ControllerBase
             out var userId)
             ? userId
             : null;
+    }
+
+    [HttpPost("{id:guid}/images")]
+    public async Task<IActionResult> AddImage(
+    Guid id,
+    [FromForm] AddTripImageRequest request)
+    {
+        var userId = GetCurrentUserId();
+
+        if (userId is null)
+            return this.UnauthorizedError();
+
+        if (request.Image is null || request.Image.Length == 0)
+            return this.BadRequestError("Image is required.");
+
+        await using var stream = request.Image.OpenReadStream();
+
+        var image = await _tripService.AddImageAsync(
+            userId.Value,
+            id,
+            stream,
+            request.Image.FileName);
+
+        if (image is null)
+            return this.NotFoundError("Trip not found.");
+
+        return Ok(new
+        {
+            data = image
+        });
     }
 }

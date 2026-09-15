@@ -7,17 +7,26 @@ namespace Voyagr.Application.Services;
 public class TripService : ITripService
 {
     private readonly ITripRepository _tripRepository;
+    private readonly IImageStorageService _imageStorageService;
 
-    public TripService(ITripRepository tripRepository)
+    public TripService(
+        ITripRepository tripRepository,
+        IImageStorageService imageStorageService)
     {
         _tripRepository = tripRepository;
+        _imageStorageService = imageStorageService;
     }
 
     public async Task<TripDetailDto> CreateAsync(
-        Guid userId,
-        CreateTripRequest request)
+    Guid userId,
+    CreateTripWithImagesDto request)
     {
-        ValidateRequest(request);
+        ValidateRequest(
+            request.Destination,
+            request.StartDate,
+            request.EndDate,
+            request.Travelers,
+            request.BudgetTotal);
 
         var now = DateTime.UtcNow;
 
@@ -41,6 +50,35 @@ public class TripService : ITripService
         };
 
         await _tripRepository.AddAsync(trip);
+
+        var sortOrder = 0;
+
+        foreach (var image in request.Images)
+        {
+            await using var stream = image.Content;
+
+            var uploadResult =
+                await _imageStorageService.UploadAsync(
+                    stream,
+                    image.FileName,
+                    $"voyagr/trips/{trip.Id}");
+
+            var tripImage = new TripImage
+            {
+                Id = Guid.NewGuid(),
+                TripId = trip.Id,
+                ImageUrl = uploadResult.Url,
+                PublicId = uploadResult.PublicId,
+                SortOrder = sortOrder,
+                IsPrimary = sortOrder == 0,
+                CreatedAt = now
+            };
+
+            trip.Images.Add(tripImage);
+
+            sortOrder++;
+        }
+
         await _tripRepository.SaveChangesAsync();
 
         return MapToDetailDto(trip);
@@ -67,7 +105,12 @@ public class TripService : ITripService
         Guid tripId,
         CreateTripRequest request)
     {
-        ValidateRequest(request);
+        ValidateRequest(
+            request.Destination,
+            request.StartDate,
+            request.EndDate,
+            request.Travelers,
+            request.BudgetTotal);
 
         var trip = await _tripRepository.GetByIdAsync(tripId);
 
@@ -101,7 +144,8 @@ public class TripService : ITripService
         int pageSize)
     {
         if (page < 1)
-            throw new ArgumentException("Page must be greater than zero.");
+            throw new ArgumentException(
+                "Page must be greater than zero.");
 
         if (pageSize < 1)
             throw new ArgumentException(
@@ -227,28 +271,60 @@ public class TripService : ITripService
         return true;
     }
 
-    private static void ValidateRequest(
-        CreateTripRequest request)
+    public async Task<TripOfflineResponseDto?> UpdateOfflineAsync(
+        Guid userId,
+        Guid tripId,
+        UpdateTripOfflineRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Destination))
+        var trip =
+            await _tripRepository.GetByIdAsync(tripId);
+
+        if (trip is null ||
+            trip.UserId != userId ||
+            trip.IsDeleted)
+        {
+            return null;
+        }
+
+        trip.IsSavedOffline = request.IsSavedOffline;
+        trip.UpdatedAt = DateTime.UtcNow;
+
+        _tripRepository.Update(trip);
+        await _tripRepository.SaveChangesAsync();
+
+        return new TripOfflineResponseDto
+        {
+            TripId = trip.Id,
+            IsSavedOffline = trip.IsSavedOffline
+        };
+    }
+
+    private static void ValidateRequest(
+        string destination,
+        DateOnly startDate,
+        DateOnly endDate,
+        int travelers,
+        decimal? budgetTotal)
+    {
+        if (string.IsNullOrWhiteSpace(destination))
             throw new ArgumentException(
                 "Destination is required.");
 
-        if (request.StartDate >= request.EndDate)
+        if (startDate >= endDate)
             throw new ArgumentException(
                 "StartDate must be before EndDate.");
 
-        if (request.Travelers <= 0)
+        if (travelers <= 0)
             throw new ArgumentException(
                 "Travelers must be greater than zero.");
 
-        if (request.BudgetTotal < 0)
+        if (budgetTotal < 0)
             throw new ArgumentException(
                 "BudgetTotal cannot be negative.");
     }
 
     private static TripDetailDto MapToDetailDto(
-        Trip trip)
+    Trip trip)
     {
         return new TripDetailDto
         {
@@ -262,7 +338,19 @@ public class TripService : ITripService
             Travelers = trip.Travelers,
             BudgetTotal = trip.BudgetTotal,
             IsSavedOffline = trip.IsSavedOffline,
-            CreatedAt = trip.CreatedAt
+            CreatedAt = trip.CreatedAt,
+
+            Images = trip.Images
+                .OrderBy(x => x.SortOrder)
+                .Select(x => new TripImageDto
+                {
+                    Id = x.Id,
+                    ImageUrl = x.ImageUrl,
+                    PublicId = x.PublicId,
+                    SortOrder = x.SortOrder,
+                    IsPrimary = x.IsPrimary
+                })
+                .ToList()
         };
     }
 
@@ -306,15 +394,14 @@ public class TripService : ITripService
         };
     }
 
-    public async Task<TripOfflineResponseDto?> UpdateOfflineAsync(
+    public async Task<TripImageDto?> AddImageAsync(
     Guid userId,
     Guid tripId,
-    UpdateTripOfflineRequest request)
+    Stream imageStream,
+    string fileName)
     {
-        var trip =
-            await _tripRepository.GetByIdAsync(tripId);
+        var trip = await _tripRepository.GetByIdAsync(tripId);
 
-        // Ownership check + deleted check
         if (trip is null ||
             trip.UserId != userId ||
             trip.IsDeleted)
@@ -322,16 +409,43 @@ public class TripService : ITripService
             return null;
         }
 
-        trip.IsSavedOffline = request.IsSavedOffline;
-        trip.UpdatedAt = DateTime.UtcNow;
+        var sortOrder = trip.Images.Any()
+            ? trip.Images.Max(x => x.SortOrder) + 1
+            : 0;
 
-        _tripRepository.Update(trip);
-        await _tripRepository.SaveChangesAsync();
-
-        return new TripOfflineResponseDto
+        await using (imageStream)
         {
-            TripId = trip.Id,
-            IsSavedOffline = trip.IsSavedOffline
-        };
+            var uploadResult =
+                await _imageStorageService.UploadAsync(
+                    imageStream,
+                    fileName,
+                    $"voyagr/trips/{trip.Id}");
+
+            var tripImage = new TripImage
+            {
+                Id = Guid.NewGuid(),
+                TripId = trip.Id,
+                ImageUrl = uploadResult.Url,
+                PublicId = uploadResult.PublicId,
+                SortOrder = sortOrder,
+                IsPrimary = !trip.Images.Any(),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _tripRepository.AddImageAsync(tripImage);
+
+            await _tripRepository.SaveChangesAsync();
+
+            return new TripImageDto
+            {
+                Id = tripImage.Id,
+                ImageUrl = tripImage.ImageUrl,
+                PublicId = tripImage.PublicId,
+                SortOrder = tripImage.SortOrder,
+                IsPrimary = tripImage.IsPrimary
+            };
+        }
     }
+
+
 }

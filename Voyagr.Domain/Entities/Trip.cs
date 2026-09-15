@@ -33,6 +33,7 @@ namespace Voyagr.Domain.Entities
         public DateTime? DeletedAt { get; set; }
 
         public DateTime UpdatedAt { get; set; }
+        public ICollection<TripImage> Images { get; set; } = new List<TripImage>();
 
         public User User { get; set; } = null!;
 

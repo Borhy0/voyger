@@ -12,11 +12,15 @@ using System.Text.Json.Serialization;
 using Voyagr.API.ExceptionHandling;
 using Microsoft.AspNetCore.Mvc;
 using Voyagr.Application.DTOS.Common;
+using Voyagr.Infrastructure.Data.Configurations;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args
 });
+builder.Services.Configure<CloudinarySettings>(
+    builder.Configuration.GetSection("Cloudinary"));
+
 
 // Rebuild JSON configuration without file watching.
 // This is important for restricted container environments
@@ -130,6 +134,7 @@ builder.Services.AddScoped<IFavoriteCurrencyRepository,FavoriteCurrencyRepositor
 builder.Services.AddScoped<IFavoriteCurrencyService,FavoriteCurrencyService>();
 builder.Services.AddScoped<ITripRepository,TripRepository>();
 builder.Services.AddScoped<ITripService, TripService>();
+builder.Services.AddScoped<IImageStorageService,CloudinaryImageStorageService>();
 builder.Services.AddMemoryCache();
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();

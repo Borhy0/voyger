@@ -5,8 +5,8 @@ namespace Voyagr.Application.Interfaces;
 public interface ITripService
 {
     Task<TripDetailDto> CreateAsync(
-        Guid userId,
-        CreateTripRequest request);
+    Guid userId,
+    CreateTripWithImagesDto request);
 
     Task<TripDetailDto?> GetByIdAsync(
         Guid userId,
@@ -42,4 +42,12 @@ public interface ITripService
     Guid userId,
     Guid tripId,
     UpdateTripOfflineRequest request);
+
+    Task<TripImageDto?> AddImageAsync(
+    Guid userId,
+    Guid tripId,
+    Stream imageStream,
+    string fileName);
+
+
 }

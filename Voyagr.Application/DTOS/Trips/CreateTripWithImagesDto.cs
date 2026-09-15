@@ -1,15 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Voyagr.Application.DTOS.Trips
 {
-    public class TripDetailDto
+    public class CreateTripWithImagesDto
     {
-        public Guid Id { get; set; }
-
         public string Destination { get; set; } = string.Empty;
 
         public string? Country { get; set; }
@@ -28,8 +27,13 @@ namespace Voyagr.Application.DTOS.Trips
 
         public bool IsSavedOffline { get; set; }
 
-        public DateTime CreatedAt { get; set; }
+        public List<TripImageUploadDto> Images { get; set; } = new();
+    }
 
-        public List<TripImageDto> Images { get; set; } = new();
+    public class TripImageUploadDto
+    {
+        public Stream Content { get; set; } = Stream.Null;
+
+        public string FileName { get; set; } = string.Empty;
     }
 }
